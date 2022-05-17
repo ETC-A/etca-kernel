@@ -508,7 +508,7 @@ assemble_sp_visit:
             jne     assemble_sp_visit_tx; if it's not, it's a control transfer
             addx    %r1, 1              ; asm_ip + 1
             ldh     %r2, %r1            ; r2 = reg = *(asm_ip+1)
-            movh    %r1, %r0            ; arg 1 = target
+            movx    %r1, %r0            ; arg 1 = target
             movh    %r0, %r2            ; arg 0 = reg
             call    assemble_long_mov   ; tail-call (it won't be returning here)
 assemble_sp_visit_tx:
@@ -787,7 +787,7 @@ fp_LM_have_imm:
 assemble_long_mov:
             pushx   %r0                 ; spill reg
             pushx   %r1                 ; spill immediate
-            cmph    %r1, 0              ; imm <? 0
+            cmpx    %r1, 0              ; imm <? 0
             mov     %r1, 0              ; arg 1 = 0
             jge     alm_L1              ; if imm >= 0, don't adjust arg 1
             mov     %r1, 1              ; otherwise arg 1 = 1
@@ -948,7 +948,7 @@ fpsm_2_imm:
             movz    %r1, 31             ; validate_u5 in %r0; see 'validate_u5' below
             cmpd    %r0, %r1            ; set 'be' condition if imm is valid
             ja      fpsm_invalid_imm    ; if not 'be' condition, imm is invalid. Die.
-            movh    %r3, %r0            ; imm = read & validated immediate
+            movx    %r3, %r0            ; imm = read & validated immediate
             mov     %r1, 13             ; state = 13
             jmp     fpsm_iterate        ; break
 
@@ -1030,7 +1030,7 @@ fpsm_6_u5:
             cmpd    %r0, %r1            ; set 'be' condition if imm is valid
             ja      fpsm_invalid_imm    ; if not 'be' condition, imm is invalid. Die.
 fpsm_6_end:
-            movh    %r3, %r0            ; imm = r0
+            movx    %r3, %r0            ; imm = r0
             mov     %r1, 17             ; state = 17
             jmp     fpsm_iterate        ; break
 
@@ -1089,7 +1089,11 @@ fpsm_8_imm:
             jb      fpsm_iterate        ; break, if imm is a valid s5
             movsx   %r0, %r3            ; r0 = sign_extend(imm, 16)
             cmpd    %r0, %r3            ; imm == sign_extend(imm, 16)?
+            je      fpsm_8_vld_i16      ; if yes, it's valid
+            movzx   %r0, %r3            ; otherwise try r0 = zero_extend(imm,16)
+            cmpd    %r0, %r3            ; imm == zero_extend(imm, 16)?
             jne     fpsm_invalid_imm    ; if no, imm is not a valid i16. Die.
+fpsm_8_vld_i16: 
             mov     %r4, 0              ; symbolptr = NULL
             mov     %r1, 18             ; state = 18
             jmp     fpsm_iterate        ; break
@@ -1127,7 +1131,7 @@ fpsm_accept:
             sth     %r5, %r7            ; static_data->eol_char = cur
             movh    %r5, %r1            ; r5 = state, temporarily
             movh    %r0, %r2            ; arg 0 = regL
-            movh    %r1, %r3            ; arg 1 = regR/imm
+            movx    %r1, %r3            ; arg 1 = regR/imm
             popx    %r2                 ; arg 2 = opcode
             popx    %r3                 ; arg 3 = size_bits
                                         ; arg 4 is already symbolptr
