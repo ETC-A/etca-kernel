@@ -1,4 +1,4 @@
-.extensions byte_operations, dword_operations, functions
+;.extensions byte_operations, dword_operations, functions
 
 ;;; Hand-compiled from asm_loader_kernel.c
 ;;; I won't copy all of the comments from that file but the general ideas are important.
@@ -104,8 +104,8 @@
 
 .set STATIC_DATA_PTR    0xC010
 .set INIT_SYMTAB_ROOT   0xC020
-.set INIT_STK_PTR       0xFFFE   ; word-aligned, I don't think we ever need to put 32-bit data on the stack
-.set INIT_OBJ_STK_PTR   0x7FFC   ; dword-aligned, as that is the promise we make to the object program
+.set INIT_STK_PTR       0x0000   ; word-aligned, I don't think we ever need to put 32-bit data on the stack
+.set INIT_OBJ_STK_PTR   0x8000   ; dword-aligned, as that is the promise we make to the object program
 
 .set BUFFER_PTR         0x0020
 .set CODE_SEGMENT       0x0030
@@ -140,11 +140,12 @@ good_service_no:
             mov     %r1, 139
             jmp syscall
 aligned_stack:
-            stx     %ln, %sp                ; the stack is now guaranteed to be aligned. Save %ln.
-                                            ; But without pushing, so that we save the right %sp.
+            pushx   %ln                     ; the stack is now guaranteed to be aligned. Save %ln.
+            addx    %sp, 2                  ; But without pushing, so that we save the right %sp.
             mov     %ln, 0xC00A             ; &static_data->user_sp
-            stx     %sp, %ln                ; static_data->user_sp = %sp
-            ldx     %ln, %sp                ; restore our return address
+            stx     %sp, %ln                ; static_data->user_sp = (original) %sp
+            addx    %sp, -2                 ; return stack pointer to after push %ln
+            popx    %ln, %sp                ; restore our return address
             mov     %sp, INIT_STK_PTR       ; initialize our own stack
             pushx   %ln                     ; and save our return address there.
             call    syscall_with_table      ; get the syscall table
@@ -574,13 +575,16 @@ fp_get_symbol_unwind2:
 ; is 0. This would happen if we called find_table_entry on the same symbol
 ; at some point, but then never attached a payload (found the defn site) later.
 sp_get_symbol:
-            stx     %r0, %sp            ; cache entry at top-of-stack without pushing
+            pushx   %r0, %sp            ; push entry
             addx    %r0, 8
             addx    %r0, 8              ; point at entry.payload
             ldx     %r0, %r0            ; r0 = entry->payload
             testx   %r0, -1             ; test payload
-            retnz                       ; if it's nonzero, we're done
-            ldx     %r1, %sp            ; otherwise, reload the entry
+            jz      sp_get_symbol_crash ; if it's zero, crash.
+            addx    %sp, 2              ; otherwise, unwind stack
+            ret                         ; and return.
+sp_get_symbol_crash:
+            popx    %r1, %sp            ; otherwise, reload the entry
                                         ; which is also a pointer to &entry.symbol
             mov     %r0, 5              ; arg 0 = UNKNOWN_SYMBOL_CODE
             call    die                 ; crash
@@ -903,7 +907,7 @@ fpsm:
             call    ste_attach_payload  ; add this entry to the symbol table
             pushx   %r5                 ; re-push &static_data
             movh    %r5, %r4            ; restore cur to r5
-            mov     %r0, ':'
+            mov     %r0, 58             ; setup 58 == ':' for comparison
             call    match               ; cur == ':'?
             testh   %r0, -1             ; test result
             jnz     fpsm_reject         ; reject with syntax error if cur != ':'
@@ -933,7 +937,7 @@ fpsm_1_accept:
             ret
 
 fpsm_2:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_2_imm          ; if not equal, try checking immediate
             call    read_register       ; if yes equal, read a register
@@ -953,7 +957,7 @@ fpsm_2_imm:
             jmp     fpsm_iterate        ; break
 
 fpsm_3:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_3_label        ; if not equal, try checking label
             call    read_register       ; if yes equal, read a register
@@ -970,7 +974,7 @@ fpsm_3_label:
             jmp     fpsm_iterate        ; break
 
 fpsm_4:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_reject         ; if not a register, this state rejects
             call    read_register       ; r0 = read_register()
@@ -979,7 +983,7 @@ fpsm_4:
             jmp     fpsm_iterate        ; break
 
 fpsm_5:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_reject         ; if not a register, this state rejects
             call    read_register       ; r0 = read_register()
@@ -987,7 +991,7 @@ fpsm_5:
             mov     %r1, 6              ; state = 6
 fpsm_scan_comma:
             call    skip_whitespace     ; skip whitespace between reg and comma
-            mov     %r0, ','            ; r0 = ',' to check
+            mov     %r0, 44             ; r0 = ',' to check
             call    match               ; r0 = (cur != ',')
             testh   %r0, -1             ; test (cur != ',')
             jnz     fpsm_reject         ; if it's not a comma, that's an error
@@ -1003,7 +1007,7 @@ fpsm_invalid_imm:
 fpsm_6:
             popx    %r4                 ; r4 = opc
             subx    %sp, 2              ; put %sp back so that opc stays on the stack
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_6_imm          ; if not a register, try checking immediate
             cmph    %r4, 12             ; opc == OPC_SLO?
@@ -1051,7 +1055,7 @@ fpsm_iterate_2:
             jmp     %r1                 ; follow the yellow brick road
 
 fpsm_7:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_reject         ; if not register, this state rejects
             call    read_any_register   ; r0 = read_any_register()
@@ -1063,7 +1067,7 @@ fpsm_7:
             jmp     fpsm_scan_comma     ; then scan comma
 
 fpsm_8:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; cur == '%'?
             jne     fpsm_8_imm          ; if not register, try immediate
             call    read_any_register   ; r0 = read_any_register()
@@ -1074,7 +1078,7 @@ fpsm_8:
             jmp     fpsm_iterate        ; break
 fpsm_8_ctrl_reg:
             subh    %r3, 8              ; imm = regR - 8
-            addx    %sp, 2              ; point at stack slot of opc
+            addx    %sp, 2              ; pop opc nonrestoring
             pushx   14                  ; overwrite opc with 14
             mov     %r1, 17             ; state = 17
             jmp     fpsm_iterate        ; break
@@ -1107,14 +1111,14 @@ fpsm_8_label:
             jmp     fpsm_iterate        ; break
 
 fpsm_9:
-            mov     %r0, '%'            ; r0 = '%' to check for register
+            mov     %r0, 37             ; r0 = '%' to check for register
             cmph    %r5, %r0            ; r0 == '%'?
             jne     fpsm_reject         ; if not a register, this state rejects
             movh    %r3, %r2            ; imm = regL
             subh    %r3, 8              ; imm -= 8
             call    read_register       ; r0 = read_register()
             movh    %r2, %r0            ; r2 = read_register()
-            addx    %sp, 2              ; point %sp at stack slot of opc
+            addx    %sp, 2              ; pop opc nonrestoring
             pushx   15                  ; overwrite opc with 15
             mov     %r1, 17             ; state = 17
             jmp     fpsm_iterate
@@ -1124,9 +1128,9 @@ fpsm_eol:
             testh   %r0, -1             ; test is_eol(cur)
             jz      fpsm_reject         ; if it's not eol (somehow?) reject!
 fpsm_accept:
-            addx    %sp, 6              ; point at stack slot of &static_data
+            addx    %sp, 4              ; point at stack slot of &static_data
             ldx     %r7, %sp            ; r7 = &static_data
-            subx    %sp, 6              ; restore %sp
+            subx    %sp, 4              ; restore %sp
             addx    %r7, EOL_CHAR_OFS   ; r7 = &static_data.eol_char
             sth     %r5, %r7            ; static_data->eol_char = cur
             movh    %r5, %r1            ; r5 = state, temporarily
@@ -1158,17 +1162,17 @@ fpsm_accept_exit:
 ;   r5: cur
 ; Clobbers r0.
 skip_whitespace:
-            mov     %r0, ' '            ; r0 = 32
+            mov     %r0, 32             ; r0 = ' ' for comparison
             jmp     skip_whitespace_L2
 skip_whitespace_L1:
             ldh     %r5, STREAM         ; cur = getchar()
 skip_whitespace_L2:
             cmph    %r5, %r0            ; r5 ==? 32
             je      skip_whitespace_L1
-            cmph    %r5, '\t'           ; r5 ==? 9
+            cmph    %r5, 9              ; r5 ==? '\t'
             je      skip_whitespace_L1
 
-            mov     %r0, ';'            ; r0 = 59
+            mov     %r0, 59             ; r0 = ';'
             cmph    %r5, %r0
             retne                       ; return if cur != ';'
             pushx   %ln
@@ -1194,7 +1198,7 @@ read_size:
             testh   %r0, -1             ; test is_alpha(cur)
             mov     %r0, 1              ; set return value for if !is_alpha(cur)
             jz      read_size_ret
-            mov     %r1, 'x'            ; r1 = 120
+            mov     %r1, 120            ; r1 = 'x'
             subh    %r5, %r1            ; cur = cur - 'x'
             je      read_size_guard
             subh    %r5, -16            ; cur = cur + ('x' - 'h')
@@ -1230,8 +1234,8 @@ read_size_kill:
 ; unused character afterwards.
 read_immediate:
             pushx   %r2                 ; wind
-            mov     %r0, '-'            ; 45, this mov is 2 instructions
-            mov     %r1, '0'            ; this mov is also 2 instructions
+            mov     %r0, 45             ; '-', this mov is 2 instructions
+            mov     %r1, 48             ; '0', this mov is also 2 instructions
             rsubh   %r0, %r5            ; r0 = r5 - 45
             pushx   %r0                 ; save the result of this subtraction
             je      read_immediate_L2   ; read extra char if '-'; r0 = imm = 0 since 'e'
@@ -1476,7 +1480,7 @@ read_opcode:
             ldh     %r5, STREAM         ; cur = getchar()
             addx    %r2, 1              ; ++buffer
             sth     %r5, %r2            ; *buffer = cur
-            mov     %r4, 'j'            ; r4 = 'j' === 104
+            mov     %r4, 106            ; r4 = 'j' === 106
             cmph    %r3, %r4            ; check if original cur was 'j'
             mov     %r4, 0              ; trigger = HIT_J === 0
             je      read_opcode_cond    ; jump to the cond part if so
@@ -1714,7 +1718,7 @@ is_imm_start_ret_true:
 cur_is_imm_start:
             mov     %r0, %r5
 is_imm_start:
-            mov     %r1, '-'
+            mov     %r1, 45             ; '-' for comparison
             cmph    %r0, %r1            ; c ==? '-'
             je      is_imm_start_ret_true
             addh    %r1, 3              ; r1 = '0'
@@ -1723,7 +1727,7 @@ is_imm_start:
 cur_is_num:
             mov     %r0, %r5
 is_num:
-            mov     %r1, '0'
+            mov     %r1, 48             ; '0' prep going in
 is_num_have_48:
             subh    %r0, %r1            ; c = c - '0'
             cmph    %r0, 10             ; c <? '9'+1
@@ -1778,7 +1782,7 @@ cur_is_not_opcode_suffix:
             mov     %r0, %r5
 is_not_opcode_suffix:
             mov     %r1, %r0            ; swap registers
-            mov     %r0, 'x'            ; r0 = 'x' = 120
+            mov     %r0, 120            ; r0 = 'x' = 120
             rsubh   %r0, %r1            ; r0 = c - 'x'
             retz                        ; if 0, c == 'x' which is valid, return 0
             subh    %r0, -16            ; r0 = (c - 'x') - ('h' - 'x') === c - 'h'
@@ -1907,7 +1911,7 @@ udiv16_step:
 itoa:
             testx   %r2, -1             ; test the input number for sign
             jnn     utoa                ; if it's already positive, go straight to utoa
-            mov     %r1, '-'            ; otherwise, prepare a minus sign
+            mov     %r1, 45             ; otherwise, prepare a minus sign '-'
             sth     %r1, %r0            ; to put in the buffer
             addx    %r0, 1              ; buf++
             rsubx   %r2, 0              ; d = -d
@@ -1915,7 +1919,7 @@ utoa:
             pushx   %ln
             pushx   %r4                 ; wind
             pushx   %r0                 ; save original value of buffer
-            mov     %r4, '0'            ; stash '0' for quick access
+            mov     %r4, 48             ; stash '0' for quick access
             mov     %r3, %r0            ; p = buf
             mov     %r0, %r2            ; dividend = d
             mov     %r2, 10             ; divisor = base = 10
