@@ -1,4 +1,4 @@
-;.extensions byte_operations, dword_operations, functions
+.extensions byte_operations, dword_operations, functions
 
 ;;; Hand-compiled from asm_loader_kernel.c
 ;;; I won't copy all of the comments from that file but the general ideas are important.
@@ -145,7 +145,7 @@ aligned_stack:
             mov     %ln, 0xC00A             ; &static_data->user_sp
             stx     %sp, %ln                ; static_data->user_sp = (original) %sp
             addx    %sp, -2                 ; return stack pointer to after push %ln
-            popx    %ln, %sp                ; restore our return address
+            popx    %ln                     ; restore our return address
             mov     %sp, INIT_STK_PTR       ; initialize our own stack
             pushx   %ln                     ; and save our return address there.
             call    syscall_with_table      ; get the syscall table
@@ -575,7 +575,7 @@ fp_get_symbol_unwind2:
 ; is 0. This would happen if we called find_table_entry on the same symbol
 ; at some point, but then never attached a payload (found the defn site) later.
 sp_get_symbol:
-            pushx   %r0, %sp            ; push entry
+            pushx   %r0                 ; push entry
             addx    %r0, 8
             addx    %r0, 8              ; point at entry.payload
             ldx     %r0, %r0            ; r0 = entry->payload
@@ -584,7 +584,7 @@ sp_get_symbol:
             addx    %sp, 2              ; otherwise, unwind stack
             ret                         ; and return.
 sp_get_symbol_crash:
-            popx    %r1, %sp            ; otherwise, reload the entry
+            popx    %r1                 ; otherwise, reload the entry
                                         ; which is also a pointer to &entry.symbol
             mov     %r0, 5              ; arg 0 = UNKNOWN_SYMBOL_CODE
             call    die                 ; crash
