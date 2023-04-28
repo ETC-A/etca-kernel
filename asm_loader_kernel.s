@@ -2064,7 +2064,7 @@ exit_with_status_msg:
             .asciiz "program exited with status "
 
 id_str:
-            .asciiz "uid"
+            .asciiz "id"
 at_str:
             .asciiz "at"
 
