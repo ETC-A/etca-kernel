@@ -891,12 +891,12 @@
 0x8690: 06 00 42 8a                   #             .word   6 empty_str
 0x8694: 72 37                         #             .ascii  "r7"
 0x8696: 07 00 42 8a                   #             .word   7 empty_str
-0x869a: 63 70                         #             .ascii  "cp"
-0x869c: 08 00 b2 8a                   #             .word   8 uid_str
-0x86a0: 65 78                         #             .ascii  "ex"
-0x86a2: 09 00 b6 8a                   #             .word   9 ten_str
+0x869a: 63 31                         #             .ascii  "c1"
+0x869c: 08 00 b2 8a                   #             .word   8 id_str
+0x86a0: 63 32                         #             .ascii  "c2"
+0x86a2: 09 00 b2 8a                   #             .word   9 id_str
 0x86a6: 66 65                         #             .ascii  "fe"
-0x86a8: 0a 00 ba 8a                   #             .word   10 at_str
+0x86a8: 0a 00 b6 8a                   #             .word   10 at_str
 0x86ac:                               # read_any_register_actual:
 0x86ac: 1d c8                         #             pushx   %r2
 0x86ae: 1d cc                         #             pushx   %r3
@@ -987,7 +987,7 @@
 0x874c: 80 96                         #             je      read_opcode_cond    ; jump to the cond part if so
 0x874e: 59 62                         #             mov     %r3, 2              ; size = 2
 0x8750: 59 82                         #             mov     %r4, 2              ; count = 2
-0x8752: 58 a1 5c a2 5c b5 5c be       #             mov     %r5, opcode_tables  ; r5 = pointer to opcode tables
+0x8752: 58 a1 5c a2 5c b5 5c ba       #             mov     %r5, opcode_tables  ; r5 = pointer to opcode tables
 0x875a:                               # read_opcode_sloop:
 0x875a: 58 01 5c 00                   #             mov     %r0, 32             ; arg 0 = buffer
 0x875e: 19 34                         #             mov     %r1, %r5            ; arg 1 = &table{2/3}[ix].name
@@ -1027,7 +1027,7 @@
 0x87a0: 0b 40                         #             sth     %r2, %r0            ; *(buffer + 3) = cur
 0x87a2: 59 64                         #             mov     %r3, 4              ; size = 4
 0x87a4: 59 85                         #             mov     %r4, 5              ; count = 5
-0x87a6: 58 a1 5c a2 5c b7 5c bd       #             mov     %r5, opcode_table4_state
+0x87a6: 58 a1 5c a2 5c b7 5c b9       #             mov     %r5, opcode_table4_state
 0x87ae:                               # read_opcode_big:                        ; before jumping here, count was set to {4/5}
 0x87ae: 4a 41                         #             ldh     %r2, STREAM         ; get another character...
 0x87b0: 1d c8                         #             pushx   %r2                 ; and spill it, because we still need the table
@@ -1073,7 +1073,7 @@
 0x87fc:                               # read_opcode_condtbl:
 0x87fc: 59 40                         #             mov     %r2, 0              ; clear r2
 0x87fe: 0b 4c                         #             sth     %r2, %r3            ; *buffer = 0
-0x8800: 58 61 5c 62 5c 79 5c 67       #             mov     %r3, cond_table_name ; get pointer to cond_table[0].name in r3
+0x8800: 58 61 5c 62 5c 79 5c 63       #             mov     %r3, cond_table_name ; get pointer to cond_table[0].name in r3
 0x8808: 19 50                         #             mov     %r2, %r4            ; r2 = trigger
 0x880a: 00 48                         #             addh    %r2, %r2            ; r2 = trigger * 2
 0x880c: 00 48                         #             addh    %r2, %r2            ; r2 = trigger * 4
@@ -1392,98 +1392,96 @@
 0x8a82: 61 73 73 65 6d 62 6c 79 20 63 6f 6d 70 6c 65 74 65 21 0a 00#             .asciiz "assembly complete!\n"
 0x8a96:                               # exit_with_status_msg:
 0x8a96: 70 72 6f 67 72 61 6d 20 65 78 69 74 65 64 20 77 69 74 68 20 73 74 61 74 75 73 20 00#             .asciiz "program exited with status "
-0x8ab2:                               # uid_str:
+0x8ab2:                               # id_str:
 0x8ab2: 75 69 64 00                   #             .asciiz "uid"
-0x8ab6:                               # ten_str:
-0x8ab6: 74 65 6e 00                   #             .asciiz "ten"
-0x8aba:                               # at_str:
-0x8aba: 61 74 00                      #             .asciiz "at"
-0x8abd:                               # opcode_table2:
-0x8abd: 04                            #             .half   4
-0x8abe:                               # opcode_tables:                  ; pointer directly to 'name'
-0x8abe: 6f 72                         #             .ascii  "or"
-0x8ac0: 0a                            #             .half   10
-0x8ac1: 6c 64                         #             .ascii  "ld"
-0x8ac3: 0b                            #             .half   11
-0x8ac4: 73 74                         #             .ascii  "st"
-0x8ac6:                               # opcode_table3short:
-0x8ac6: 00                            #             .half   0
-0x8ac7: 61 64 64                      #             .ascii  "add"
-0x8aca: 01                            #             .half   1
-0x8acb: 73 75 62                      #             .ascii  "sub"
-0x8ace: 03                            #             .half   3
-0x8acf: 63 6d 70                      #             .ascii  "cmp"
-0x8ad2: 05                            #             .half   5
-0x8ad3: 78 6f 72                      #             .ascii  "xor"
-0x8ad6: 06                            #             .half   6
-0x8ad7: 61 6e 64                      #             .ascii  "and"
-0x8ada: 0c                            #             .half   12
-0x8adb: 73 6c 6f                      #             .ascii  "slo"
-0x8ade:                               # opcode_table3:
-0x8ade: 09 07 02                      #             .half   9   7   2
-0x8ae1: 6d 6f 76                      #             .ascii  "mov"
-0x8ae4: 0c 04 03                      #             .half   12  4   3
-0x8ae7: 70 6f 70                      #             .ascii  "pop"
-0x8aea: 0e 0b 03                      #             .half   14  11  3
-0x8aed: 68 6c 74                      #             .ascii  "hlt"
-0x8af0: 0f 0b 03                      #             .half   15  11  3
-0x8af3: 6e 6f 70                      #             .ascii  "nop"
-0x8af6: 10 0b 01                      #             .half   16  11  1
-0x8af9: 72 65 74                      #             .ascii  "ret"
-0x8afc:                               # opcode_table4:
-0x8afc: 02                            #             .half   2   
-0x8afd:                               # opcode_table4_state:
-0x8afd: 05 03                         #             .half   5   3
-0x8aff: 72 73 75 62                   #             .ascii  "rsub"
-0x8b03: 07 05 03                      #             .half   7   5   3
-0x8b06: 74 65 73 74                   #             .ascii  "test"
-0x8b0a: 08 05 03                      #             .half   8   5   3
-0x8b0d: 6d 6f 76 7a                   #             .ascii  "movz"
-0x8b11: 09 05 03                      #             .half   9   5   3
-0x8b14: 6d 6f 76 73                   #             .ascii  "movs"
-0x8b18: 0d 02 03                      #             .half   13  2   3
-0x8b1b: 70 75 73 68                   #             .ascii  "push"
-0x8b1f: 10 03 01                      #             .half   16  3   1
-0x8b22: 63 61 6c 6c                   #             .ascii  "call"
-0x8b26:                               # cond_table:
-0x8b26: 0e                            #             .half   14
-0x8b27:                               # cond_table_name:
-0x8b27: 6d 70 00                      #             .asciiz "mp"
+0x8ab6:                               # at_str:
+0x8ab6: 61 74 00                      #             .asciiz "at"
+0x8ab9:                               # opcode_table2:
+0x8ab9: 04                            #             .half   4
+0x8aba:                               # opcode_tables:                  ; pointer directly to 'name'
+0x8aba: 6f 72                         #             .ascii  "or"
+0x8abc: 0a                            #             .half   10
+0x8abd: 6c 64                         #             .ascii  "ld"
+0x8abf: 0b                            #             .half   11
+0x8ac0: 73 74                         #             .ascii  "st"
+0x8ac2:                               # opcode_table3short:
+0x8ac2: 00                            #             .half   0
+0x8ac3: 61 64 64                      #             .ascii  "add"
+0x8ac6: 01                            #             .half   1
+0x8ac7: 73 75 62                      #             .ascii  "sub"
+0x8aca: 03                            #             .half   3
+0x8acb: 63 6d 70                      #             .ascii  "cmp"
+0x8ace: 05                            #             .half   5
+0x8acf: 78 6f 72                      #             .ascii  "xor"
+0x8ad2: 06                            #             .half   6
+0x8ad3: 61 6e 64                      #             .ascii  "and"
+0x8ad6: 0c                            #             .half   12
+0x8ad7: 73 6c 6f                      #             .ascii  "slo"
+0x8ada:                               # opcode_table3:
+0x8ada: 09 07 02                      #             .half   9   7   2
+0x8add: 6d 6f 76                      #             .ascii  "mov"
+0x8ae0: 0c 04 03                      #             .half   12  4   3
+0x8ae3: 70 6f 70                      #             .ascii  "pop"
+0x8ae6: 0e 0b 03                      #             .half   14  11  3
+0x8ae9: 68 6c 74                      #             .ascii  "hlt"
+0x8aec: 0f 0b 03                      #             .half   15  11  3
+0x8aef: 6e 6f 70                      #             .ascii  "nop"
+0x8af2: 10 0b 01                      #             .half   16  11  1
+0x8af5: 72 65 74                      #             .ascii  "ret"
+0x8af8:                               # opcode_table4:
+0x8af8: 02                            #             .half   2   
+0x8af9:                               # opcode_table4_state:
+0x8af9: 05 03                         #             .half   5   3
+0x8afb: 72 73 75 62                   #             .ascii  "rsub"
+0x8aff: 07 05 03                      #             .half   7   5   3
+0x8b02: 74 65 73 74                   #             .ascii  "test"
+0x8b06: 08 05 03                      #             .half   8   5   3
+0x8b09: 6d 6f 76 7a                   #             .ascii  "movz"
+0x8b0d: 09 05 03                      #             .half   9   5   3
+0x8b10: 6d 6f 76 73                   #             .ascii  "movs"
+0x8b14: 0d 02 03                      #             .half   13  2   3
+0x8b17: 70 75 73 68                   #             .ascii  "push"
+0x8b1b: 10 03 01                      #             .half   16  3   1
+0x8b1e: 63 61 6c 6c                   #             .ascii  "call"
+0x8b22:                               # cond_table:
+0x8b22: 0e                            #             .half   14
+0x8b23:                               # cond_table_name:
+0x8b23: 6d 70 00                      #             .asciiz "mp"
+0x8b26: 00                            #             .half   0
+0x8b27: 7a 00 00                      #             .asciiz "z\0"
 0x8b2a: 00                            #             .half   0
-0x8b2b: 7a 00 00                      #             .asciiz "z\0"
-0x8b2e: 00                            #             .half   0
-0x8b2f: 65 00 00                      #             .asciiz "e\0"
+0x8b2b: 65 00 00                      #             .asciiz "e\0"
+0x8b2e: 01                            #             .half   1
+0x8b2f: 6e 7a 00                      #             .asciiz "nz"
 0x8b32: 01                            #             .half   1
-0x8b33: 6e 7a 00                      #             .asciiz "nz"
-0x8b36: 01                            #             .half   1
-0x8b37: 6e 65 00                      #             .asciiz "ne"
-0x8b3a: 02                            #             .half   2
-0x8b3b: 6e 00 00                      #             .asciiz "n\0"
-0x8b3e: 03                            #             .half   3
-0x8b3f: 6e 6e 00                      #             .asciiz "nn"
+0x8b33: 6e 65 00                      #             .asciiz "ne"
+0x8b36: 02                            #             .half   2
+0x8b37: 6e 00 00                      #             .asciiz "n\0"
+0x8b3a: 03                            #             .half   3
+0x8b3b: 6e 6e 00                      #             .asciiz "nn"
+0x8b3e: 04                            #             .half   4
+0x8b3f: 63 00 00                      #             .asciiz "c\0"
 0x8b42: 04                            #             .half   4
-0x8b43: 63 00 00                      #             .asciiz "c\0"
-0x8b46: 04                            #             .half   4
-0x8b47: 62 00 00                      #             .asciiz "b\0"
+0x8b43: 62 00 00                      #             .asciiz "b\0"
+0x8b46: 05                            #             .half   5
+0x8b47: 6e 63 00                      #             .asciiz "nc"
 0x8b4a: 05                            #             .half   5
-0x8b4b: 6e 63 00                      #             .asciiz "nc"
-0x8b4e: 05                            #             .half   5
-0x8b4f: 61 65 00                      #             .asciiz "ae"
-0x8b52: 06                            #             .half   6
-0x8b53: 6f 00 00                      #             .asciiz "o\0"
-0x8b56: 07                            #             .half   7
-0x8b57: 6e 6f 00                      #             .asciiz "no"
-0x8b5a: 08                            #             .half   8
-0x8b5b: 62 65 00                      #             .asciiz "be"
-0x8b5e: 09                            #             .half   9
-0x8b5f: 61 00 00                      #             .asciiz "a\0"
-0x8b62: 0a                            #             .half   10
-0x8b63: 6c 00 00                      #             .asciiz "l\0"
-0x8b66: 0b                            #             .half   11
-0x8b67: 67 65 00                      #             .asciiz "ge"
-0x8b6a: 0c                            #             .half   12
-0x8b6b: 6c 65 00                      #             .asciiz "le"
-0x8b6e: 0d                            #             .half   13
-0x8b6f: 67 00 00                      #             .asciiz "g\0"
-0x8b72: 0e                            #             .half   14
-0x8b73: 00 00 00                      #             .asciiz "\0\0"
+0x8b4b: 61 65 00                      #             .asciiz "ae"
+0x8b4e: 06                            #             .half   6
+0x8b4f: 6f 00 00                      #             .asciiz "o\0"
+0x8b52: 07                            #             .half   7
+0x8b53: 6e 6f 00                      #             .asciiz "no"
+0x8b56: 08                            #             .half   8
+0x8b57: 62 65 00                      #             .asciiz "be"
+0x8b5a: 09                            #             .half   9
+0x8b5b: 61 00 00                      #             .asciiz "a\0"
+0x8b5e: 0a                            #             .half   10
+0x8b5f: 6c 00 00                      #             .asciiz "l\0"
+0x8b62: 0b                            #             .half   11
+0x8b63: 67 65 00                      #             .asciiz "ge"
+0x8b66: 0c                            #             .half   12
+0x8b67: 6c 65 00                      #             .asciiz "le"
+0x8b6a: 0d                            #             .half   13
+0x8b6b: 67 00 00                      #             .asciiz "g\0"
+0x8b6e: 0e                            #             .half   14
+0x8b6f: 00 00 00                      #             .asciiz "\0\0"

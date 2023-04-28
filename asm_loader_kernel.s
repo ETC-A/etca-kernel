@@ -1351,10 +1351,10 @@ register_table:
             .word   6 empty_str
             .ascii  "r7"
             .word   7 empty_str
-            .ascii  "cp"
-            .word   8 uid_str
-            .ascii  "ex"
-            .word   9 ten_str
+            .ascii  "c1"
+            .word   8 id_str
+            .ascii  "c2"
+            .word   9 id_str
             .ascii  "fe"
             .word   10 at_str
 read_any_register_actual:
@@ -2063,10 +2063,8 @@ completed_assembly_msg:
 exit_with_status_msg:
             .asciiz "program exited with status "
 
-uid_str:
+id_str:
             .asciiz "uid"
-ten_str:
-            .asciiz "ten"
 at_str:
             .asciiz "at"
 
