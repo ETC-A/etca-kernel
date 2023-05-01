@@ -88,7 +88,7 @@
 ;;;             |----------------------------------|
 ;;; 0x80000010  |        void *heap_limit          |
 ;;;             |----------------------------------|
-;;; 0x80000014  |   char eol_char |       ?        |
+;;; 0x80000014  |   char eol_char | buffer for xtoa|
 ;;;             |_________________|________________|
 
 .set SRCLINENO_OFS       -12
@@ -102,6 +102,7 @@
 .set INIT_HEAP_LIMIT    0x80000018
 .set INIT_STK_PTR       0xA0000000
 .set INIT_OBJ_STK_PTR   0x20000000
+.set RT_BUFFER_PTR      0x80000014   ; runtime buffer for itoa/utoa &c
 
 .set BUFFER_PTR         0x00000020   ; small buffer for reading opcodes/registers etc
 .set CODE_SEGMENT       0x00000030   ; we still use 0x20-0x30 as a buffer for non read_name lexing
@@ -144,16 +145,16 @@ aligned_stack:
             mov     %sp, INIT_STK_PTR       ; initialize our own stack
             pushd   %ln                     ; and save our return address there.
             call    syscall_with_table      ; get the syscall table
-            ; all of these functions are implemented down at the bottom
-            .align 4 ; align for table
-            .dword   syscall_exit syscall_putuint syscall_putsint syscall_puts syscall_sbrk
+            ; these are all 0xFFFF8??? so they just need 16 bits + sign extension.
+            .word   syscall_exit    &0xFFFF
+            .word   syscall_putuint &0xFFFF
+            .word   syscall_putsint &0xFFFF
+            .word   syscall_puts    &0xFFFF
+            .word   syscall_sbrk    &0xFFFF
 syscall_with_table:
-            addd    %ln, 3
-            andd    %ln, -4                 ; align to correct the pointer to the table
-
             addh    %r0, %r0                ; service_no *= sizeof(word)
             addd    %ln, %r0                ; offset into the syscall table
-            ldd     %ln, %ln                ; load the system function to call
+            ldx     %ln, %ln                ; load the system function to call, ldx will sign extend
             jmp     %ln                     ; invoke it
 
 
@@ -925,7 +926,7 @@ alm_pos_check:
             je      alm_pos_loop        ; if yes, loop
 alm_pos_mov:
             ; restore reg from %sp+32 just like the neg_mov case. r2 has groups[group].
-            mov     %r0, 36
+            mov     %r0, 32
             addd    %r0, %sp            ; &reg
             ldd     %r0, %r0            ; arg 0 = reg
             mov     %r1, %r2            ; arg 1 = groups[group]. fp_RI will & with 31
@@ -1609,6 +1610,7 @@ ascii_directive_nul:
             sth     %r1, %r3            ; *iloc = 0
             addd    %r3, 1              ; iloc++
 ascii_directive_done:
+            std     %r3, %r2            ; static_data->asm_ip = iloc
             popd    %ln
             ret
 
@@ -1766,7 +1768,7 @@ read_size:
             pushd   %ln
             call    cur_is_alpha        ; r0 = is_alpha(cur)
             testh   %r0, -1             ; test is_alpha(cur)
-            mov     %r0, 1              ; set return value for if !is_alpha(cur)
+            mov     %r0, 2              ; set return value for if !is_alpha(cur)
             jz      read_size_ret
             mov     %r1, 120            ; r1 = 'x'
             subh    %r5, %r1            ; cur = cur - 'x'
@@ -2041,9 +2043,9 @@ read_register:
             retl                        ; return reg if it's < 8
             jmp     read_any_register_L2; otherwise, call die(INVALID_REGISTER)
 read_ctrl_register:
-            pushd   %ld
+            pushd   %ln
             call    read_any_register
-            popd    %ld
+            popd    %ln
             cmph    %r0, 8
             retge                       ; return reg if it's >= 8
             jmp     read_any_register_L2; otherwise, call die as above
@@ -2452,6 +2454,7 @@ msg_header:                             ; char **msg_header
             .word   out_of_msg  &0xFFFF
             .word   empty_msg   &0xFFFF
             .word   unknown_msg &0xFFFF
+            .word   unknown_msg &0xFFFF
 msg_body:                               ; char **msg_body
             .word   syntax_msg    &0xFFFF
             .word   register_msg  &0xFFFF
@@ -2470,7 +2473,8 @@ die_actual:
             ldx     %r0, %r0            ; r0 = msg_header[code] (ldx sign-extends so we get the right ptr)
             call    puts                ; puts(msg_header[code])
             movd    %r0, %r3            ; retrieve &msg_header[code]
-            addd    %r0, 14             ; r0 = &msg_body[code]
+            addd    %r0, 8              ; r0 = &msg_body[code]
+            addd    %r0, 8              ; which is &msg_header[code] + 16
             ldx     %r0, %r0            ; r0 = msg_body[code]   (ldx sign-extends so we get the right ptr)
             call    puts                ; puts(msg_body[code])   additionally r1 = 0
             subd    %r3, %r5            ; r3 = &msg_header[code] - msg_header, eqv. 2*code
@@ -2553,7 +2557,7 @@ utoa:
             pushd   %r4                 ; wind
             pushd   %r0                 ; save original value of buffer
             mov     %r4, 48             ; stash '0' for quick access
-            mov     %r3, %r0            ; p = buf
+            movd    %r3, %r0            ; p = buf
             mov     %r0, %r2            ; dividend = d
             mov     %r2, 10             ; divisor = base = 10
 itoa_loop:
@@ -2609,7 +2613,7 @@ syscall_exit_with_msg:
             movd    %r0, %r7            ; arg 0 = msg
             call    puts                ; print the msg
             popd    %r2                 ; arg 2 = status
-            mov     %r0, 0xC020         ; arg 0 = runtime buffer after kernel data
+            mov     %r0, RT_BUFFER_PTR  ; arg 0 = runtime buffer after kernel data
             movd    %r4, %r0            ; save buffer addr
             call    utoa                ; write str(code) into buffer
             movd    %r0, %r4            ; arg 0 = buffer again
@@ -2623,7 +2627,7 @@ syscall_putsint:
             pushd   %r4
             cmph    %r0, 2              ; compare 2*service_no to 2. If it's 2, print unsigned.
             movx    %r2, %r1            ; arg 2 = number
-            mov     %r0, 0xC020         ; arg 0 = runtime buffer after kernel data
+            mov     %r0, RT_BUFFER_PTR  ; arg 0 = runtime buffer after kernel data
             movd    %r4, %r0            ; and save this address
             jne     syscall_do_signed   ; if service no is not 2, use itoa
             call    utoa                ; otherwise use utoa
@@ -2658,7 +2662,7 @@ syscall_return:
             ; We can do whatever we want with r1, but the other registers
             ; have to stay unchanged, including r0 which holds a return value.
             popd    %ln                 ; restore our return address
-            mov     %sp, 0xC00A         ; &static_data->user_sp
+            mov     %sp, 0x80000000     ; &static_data->user_sp
             ldd     %sp, %sp            ; %sp = static_data->user_sp
             ret
 
@@ -2695,6 +2699,9 @@ symbol_msg:
 
 directive_msg:
             .asciiz "directive "
+
+missing_features_msg:
+            .asciiz "missing features :("
 
 completed_assembly_msg:
             .asciiz "assembly complete!\n"
