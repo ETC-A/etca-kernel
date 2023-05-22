@@ -160,10 +160,11 @@ syscall_with_table:
 
 ; The assembler/bootloader entrypoint.
 _start:
-            mov     %r0, %cpuid1            ; get cpuid1 to check for S&F,8b,32b
+            mov     %r0, %cpuid1            ; get cpuid1 to check for 32-bit operations
             mov     %r1, 0x4000             ; 32-bit operations
             testx   %r0, %r1
             jz      missing_feature
+            movd    %r0, %cpuid1            ; get cpuid1 to check for S&F,8b,32b,32p
             mov     %r1, 0x1400A            ; S&F,8b,32b,32p
             andd    %r0, %r1
             cmpd    %r0, %r1
